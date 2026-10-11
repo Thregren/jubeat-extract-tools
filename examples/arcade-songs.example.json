@@ -1,0 +1,9 @@
+[
+  {
+    "mid": "00000001",
+    "title": "Example Track",
+    "artist": "Example Artist",
+    "version": "jubeat-example",
+    "levels": {"BSC": "1", "ADV": "4", "EXT": "7"}
+  }
+]
