@@ -4,6 +4,21 @@
 
 仓库只包含代码、文档和人工构造的示例。输入备份、游戏程序、歌曲、谱面、封面、解包结果和个人工作记录均不随仓库分发。工具在本地运行，没有网络上传功能。
 
+## 先读懂原理
+
+**[从文件字节到可读谱面](docs/walkthrough.md)**：用同一份人工谱面，逐步演示双层 ZIP、资源解密、IFS 偏移表、长押位段、变 BPM 积分和最终 JSON。每一步都能对应到源码，已知事实、还原约定和未解释字段分别说明。
+
+两条路线的区别是：**iOS 要解开资源加密；本工具支持的歌曲 IFS 按分块表取数据，再解析谱面和解码音频。** 两者最终都把 300 Hz 时间刻度转换成拍值。
+
+无需游戏文件即可运行带中间结果的演示：
+
+```bash
+python3 examples/walkthrough.py
+# 没有 C 编译器时：python3 examples/walkthrough.py --skip-decrypt
+```
+
+更深入的细节：[BFCodec、密钥展开与 CgBI](docs/mobile-format.md) · [IFS 地址计算与 ADPCM 手算](docs/arcade-format.md) · [证据与验证范围](docs/validation.md)。
+
 ## 内容
 
 | 路径 | 用途 |
@@ -15,6 +30,7 @@
 | `arcade/import_ifs.py` | 歌曲 IFS 解析、OKI4S 音源解码与 `.mcz` 打包 |
 | `docs/` | 两种格式、时间轴、验证范围和整理原则 |
 | `examples/arcade-songs.example.json` | 人工编写的元数据结构示例，不含真实曲目 |
+| `examples/walkthrough.py` | 打印人工样例的字节、时间轴、像素、采样与 JSON，并核对结果 |
 | `tests/` | 在临时目录生成测试资源，无需提供游戏文件 |
 
 ## 环境

@@ -22,5 +22,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Unit and synthetic integration tests
         run: python -m unittest discover -s tests -v
+      - name: Executable documentation
+        run: python examples/walkthrough.py
       - name: Publication audit
         run: python scripts/check_public_tree.py

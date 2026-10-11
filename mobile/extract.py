@@ -9,9 +9,10 @@
 原理
 ----
 .adbk 是 iMazing 备份（本质 zip），里面每首曲子是一个 `Documents/<ID>.jbt`；
-.jbt 又是一个 zip，内含 10 个条目（info / artwork / seq_* / bgm ...）。
-所有条目都是 Konami 魔改 Blowfish 密文，密钥 = MD5("Konami Bemani Mobile iPad")。
-解密算法逆自 Jubeat.app 3.9.11，实现见 tools/jbf.c；谱面/图片格式见 README.md。
+.jbt 又是一个 zip，从中读取 info / artwork / seq_* / bgm 等已知条目。
+这些资源使用 BFCodec 的 Blowfish 变种，密钥 = MD5("Konami Bemani Mobile iPad")。
+解密算法整理自 Jubeat.app 3.9.11 的逆向记录，实现见 tools/jbf.c；
+逐字节原理演示见 docs/walkthrough.md。
 """
 from __future__ import annotations
 
@@ -55,7 +56,7 @@ MAX_ARCHIVE_ENTRIES = 100_000
 _LIB = None
 _LIB_LOCK = threading.Lock()
 
-# 长押方向向量：0=下 1=上 2=右 3=左（index = x + 4y）
+# 从长押起点到终点的坐标增量；index = x + 4*y，不以箭头朝向命名。
 _DIR_VEC = {0: (0, -1), 1: (0, 1), 2: (-1, 0), 3: (1, 0)}
 
 _SEQ_CODES = ("bas", "adv", "ext")

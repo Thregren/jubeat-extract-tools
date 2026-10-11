@@ -21,8 +21,9 @@ IFS 是"分块包"，共 5 块，固定顺序：
 音源算法
 --------
 Konami BMP 不是 PCM，是 OKI4S ADPCM（等价于 vgmstream 的 `coding_OKI4S`）：
-每半字节一个采样，step 表 48 项，指数回退表 16 项；双声道时一字节高 4 位是
-左声道、低 4 位是右声道。解出来按曲库统一电平（RMS -14.61 dB）编码成 Vorbis。
+每半字节一个采样，step 表 49 项（下标 0..48），步长索引变化表 16 项；
+双声道时一字节高 4 位是左声道、低 4 位是右声道。默认保持解码电平再编码
+Vorbis；只有显式指定 --target-rms-db 才做 RMS 归一化。手算见 docs/arcade-format.md。
 
 用法
 ----
@@ -61,12 +62,12 @@ _BLOCK = {"EXT": 2, "ADV": 3, "BSC": 4}
 _TICK_HZ = 300
 # 拍值取整粒度：1/48 拍（与曲库既有谱面一致）
 _BEAT_SNAP = 48
-# 长押方向：0=下 1=上 2=右 3=左；index = x + 4*y
+# 从长押起点到终点的坐标增量；index = x + 4*y，不以箭头朝向命名。
 _DIR_VEC = {0: (0, -1), 1: (0, 1), 2: (-1, 0), 3: (1, 0)}
 
 
 class ChartError(ValueError):
-    """谱面无法解析（多半是官方没配信的占位块）。"""
+    """谱面无法解析，例如结构越界、事件无效或疑似占位块。"""
 
 
 def load_ifs(path: Path) -> tuple[bytes, list[tuple[int, int]]]:
@@ -127,7 +128,7 @@ def _truncate(value: Fraction, places: int) -> Fraction:
 
 
 def _value_to_bpm(value: int) -> Fraction:
-    """BPM 值 → 真实 BPM（Konami 存的是 60000000/BPM 的截断整数）。"""
+    """从截断整数回推可兼容的短小数 BPM；截断信息不能唯一恢复。"""
     if value <= 0:
         raise ChartError("TEMPO 必须大于 0")
     exact = Fraction(6 * 10 ** 7, value)
@@ -233,7 +234,7 @@ def beat_tuple(beat: Fraction) -> list[int]:
 
 # ---------------------------------------------------------------- 音源解码
 
-# OKI4S 的步长表（48 项）与指数回退表
+# OKI4S 的步长表（49 项，下标 0..48）与步长索引变化表
 _STEP_SIZES = (
     16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66,
     73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253,
@@ -269,7 +270,7 @@ def parse_bmp_header(data: bytes) -> dict:
 
 
 def decode_bmp_to_pcm(data: bytes) -> tuple[bytes, int, int]:
-    """Konami BMP → (16-bit LE 立体声 PCM, 采样率, 声道数)。"""
+    """Konami BMP → (16-bit LE PCM, 采样率, 声道数)，保持单/双声道。"""
     head = parse_bmp_header(data)
     adpcm = head["adpcm"]
     channels = head["channels"]
@@ -392,7 +393,7 @@ def encode_vorbis(wav: bytes) -> bytes:
 
 
 def bmp_to_ogg(data: bytes, target_rms_db: float | None = None) -> bytes:
-    """Konami BMP → 与曲库同电平的 Ogg Vorbis。"""
+    """Konami BMP → Ogg Vorbis；仅指定目标 RMS 时调整电平。"""
     pcm, rate, channels = decode_bmp_to_pcm(data)
     if target_rms_db is None:
         return encode_vorbis(_pcm_to_wav(pcm, rate, channels))

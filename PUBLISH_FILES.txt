@@ -10,7 +10,9 @@ docs/arcade-format.md
 docs/mobile-format.md
 docs/publication.md
 docs/validation.md
+docs/walkthrough.md
 examples/arcade-songs.example.json
+examples/walkthrough.py
 mobile/__init__.py
 mobile/extract.py
 mobile/make_report.py
