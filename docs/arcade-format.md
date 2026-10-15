@@ -29,7 +29,7 @@ payload = file[base+relative : base+relative+size]
 | 区块 | 内容 |
 |---|---|
 | 0 | 完整 BGM，Konami BMP / OKI4S ADPCM |
-| 1 | 试听音频；当前转换流程忽略 |
+| 1 | 试听音频；`--with-preview` 可导出 |
 | 2 | EXT |
 | 3 | ADV |
 | 4 | BSC |
@@ -110,6 +110,12 @@ step_index = clamp(step_index + STEP_DELTA[code], 0, 48)
 PCM 只有采样值；代码用 `wave` 补上采样率、声道数等头部形成 WAV，再交给 `oggenc` 或 ffmpeg 编成 Vorbis。这个步骤与 IFS 分块读取、ADPCM 解码分别独立，可以各自检查。
 
 默认只解码和转 Vorbis，不主动改变电平。可选 `--target-rms-db` 做 RMS 归一化；有损转换可能改变波形，建议保留原始输入。`--charts-only` 完全跳过音频处理。
+
+`--with-preview` 对区块 1 使用同一套 BMP/OKI4S 解码和音频编码流程，保存为
+`.mcz` 内的 `0/preview.ogg`。它保留游戏自带的试听内容，不从完整 BGM 截取，
+也不假定固定十秒长度。区块为空时跳过；非空块无效时整曲转换失败。
+返回统计包含 `preview_bytes` 和 `preview_status`（`exported`、`absent`、`not_requested`）。
+若显式设置目标 RMS，同样应用到试听；默认保持各自解码电平。
 
 启用归一化时，用 `20*log10(sqrt(mean(sample²))/32768)` 估计 RMS dBFS，再乘以 `10^(增益dB/20)` 并限制到 16 位范围。实现还使用历史的 0.45 dB 编码补偿，编码后复测，偏差超过 0.15 dB 时从原 PCM 调整后再编码一次；这些是导出电平的工程参数，不属于 IFS 或 ADPCM 格式。大增益仍可能削波。
 

@@ -85,7 +85,7 @@ def backup(path, bad=False):
         z.writestr('example.app/Documents/private-settings.txt', 'not a song; never extracted')
 
 
-def ifs_bytes(chart=None):
+def ifs_bytes(chart=None, preview=b''):
     if chart is None:
         chart = ('0,TEMPO,500000\n0,PLAY,0\n300,LONG,76880\n600,TEMPO,1000000\n900,PLAY,2\n1200,END,0\n').encode('cp932')
     audio = bytearray(0x20)
@@ -93,7 +93,7 @@ def ifs_bytes(chart=None):
     struct.pack_into('>I', audio, 4, 16)
     audio[16] = 2
     struct.pack_into('>I', audio, 20, 8000)
-    blocks = [bytes(audio) + bytes(range(16)), b'', chart, chart, chart]
+    blocks = [bytes(audio) + bytes(range(16)), preview, chart, chart, chart]
     header = bytearray(0x80)
     struct.pack_into('>I', header, 0x10, len(header))
     offset = 0

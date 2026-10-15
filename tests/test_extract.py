@@ -101,6 +101,54 @@ class ChartTests(unittest.TestCase):
 
 
 class OutputTests(unittest.TestCase):
+    def test_arcade_original_preview_block(self):
+        # A distinct, artificial preview proves that block 1 is decoded,
+        # rather than taking a cut of block 0 or reusing its output.
+        preview = bytearray(32)
+        preview[:4] = b'BMP\0'
+        struct.pack_into('>I', preview, 4, 4)
+        preview[16] = 1
+        struct.pack_into('>I', preview, 20, 4000)
+        preview = bytes(preview) + b'\x10\x10'
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); src = root / 'song.ifs'; out = root / 'song.mcz'
+            src.write_bytes(synthetic.ifs_bytes(preview=preview))
+            with patch.object(arcade, 'encode_vorbis', side_effect=[b'BGM OggS', b'PREVIEW OggS']) as encode:
+                stats = arcade.build_mcz(ifs=src, cover=b'', mid='00000001', title='Example',
+                    artist='Example', levels={'BSC': 1, 'ADV': 2, 'EXT': 3}, out_path=out,
+                    with_preview=True)
+            with zipfile.ZipFile(out) as z:
+                self.assertEqual(z.read('0/bgm.ogg'), b'BGM OggS')
+                self.assertEqual(z.read('0/preview.ogg'), b'PREVIEW OggS')
+                chart = json.loads(z.read('0/Example_BSC Lv1.mc'))
+                self.assertEqual(chart['note'][0]['sound'], 'bgm.ogg')
+            import wave, io
+            with wave.open(io.BytesIO(encode.call_args_list[1].args[0])) as wav:
+                self.assertEqual((wav.getnchannels(), wav.getframerate(), wav.getnframes()), (1, 4000, 4))
+                self.assertEqual(wav.readframes(4), struct.pack('<4h', 96, 128, 224, 256))
+            self.assertEqual(stats['preview_status'], 'exported')
+            self.assertEqual(stats['preview_bytes'], len(b'PREVIEW OggS'))
+
+    def test_arcade_preview_empty_disabled_or_invalid(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); src = root / 'song.ifs'
+            kwargs = dict(ifs=src, cover=b'', mid='00000001', title='Example', artist='',
+                          levels={'BSC': 1, 'ADV': 2, 'EXT': 3})
+            for index, (raw, enabled, status) in enumerate([(b'', True, 'absent'), (b'bad audio', False, 'not_requested')]):
+                src.write_bytes(synthetic.ifs_bytes(preview=raw)); out = root / f'{index}.mcz'
+                with patch.object(arcade, 'bmp_to_ogg', return_value=b'OggS') as decode:
+                    stats = arcade.build_mcz(**kwargs, out_path=out, with_preview=enabled)
+                self.assertEqual(decode.call_count, 1)
+                self.assertEqual(stats['preview_status'], status)
+                with zipfile.ZipFile(out) as z: self.assertNotIn('0/preview.ogg', z.namelist())
+            src.write_bytes(synthetic.ifs_bytes(preview=b'bad audio'))
+            with patch.object(arcade, 'encode_vorbis', return_value=b'OggS'):
+                with self.assertRaises(arcade.AudioError):
+                    arcade.build_mcz(**kwargs, out_path=root / 'invalid.mcz', with_preview=True)
+            self.assertFalse((root / 'invalid.mcz').exists())
+            with self.assertRaises(ValueError):
+                arcade.build_mcz(**kwargs, out_path=root / 'conflict.mcz', charts_only=True, with_preview=True)
+
     def test_transcode_fallback_and_input_errors(self):
         failed = subprocess.CompletedProcess([], 8, b'', b"Unknown encoder 'libvorbis'")
         success = subprocess.CompletedProcess([], 0, b'OggS synthetic', b'')

@@ -8,7 +8,7 @@
 IFS 是"分块包"，共 5 块，固定顺序：
 
     blk0 = BGM（Konami BMP / OKI4S ADPCM）
-    blk1 = 10 秒试听（同样是有损压缩，本项目用不到）
+    blk1 = 试听音频（可选导出；时长由实际数据决定）
     blk2 = EXT 谱面    blk3 = ADV 谱面    blk4 = BSC 谱面
 
 区块表在文件 0x10 处的 BE32 偏移减 60 处，每条 12 字节（BE32 偏移 + BE32 长度）。
@@ -456,9 +456,16 @@ def build_mcz(
     out_path: Path,
     charts_only: bool = False,
     target_rms_db: float | None = None,
+    with_preview: bool = False,
 ) -> dict:
     """按曲库既有格式写一个 .mcz，返回统计信息。"""
+    if charts_only and with_preview:
+        raise ValueError("--charts-only 与 --with-preview 不能同时使用")
     audio = b"" if charts_only else bmp_to_ogg(read_block(ifs, 0), target_rms_db)
+    # Use the original preview block; do not manufacture a clip from the BGM.
+    # Empty blocks are allowed, but malformed nonempty audio must fail.
+    preview_raw = read_block(ifs, 1) if with_preview else b""
+    preview = bmp_to_ogg(preview_raw, target_rms_db) if preview_raw else b""
     cover_name = f"jkt_{mid}.png" if cover else ""
     stamp = int(time.time())
     stats = {}
@@ -499,10 +506,14 @@ def build_mcz(
                        json.dumps(chart, ensure_ascii=False, separators=(",", ":")))
         if audio:
             z.writestr("0/bgm.ogg", audio)
+        if preview:
+            z.writestr("0/preview.ogg", preview)
         if cover:
             z.writestr(f"0/{cover_name}", cover)
 
     stats["audio_bytes"] = len(audio)
+    stats["preview_bytes"] = len(preview)
+    stats["preview_status"] = ("exported" if preview else "absent") if with_preview else "not_requested"
     stats["mcz_bytes"] = out_path.stat().st_size
     return stats
 
@@ -556,8 +567,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--only", help="只处理这些 mid（逗号分隔）")
     ap.add_argument("--dry-run", action="store_true", help="检查输入，不写文件")
     ap.add_argument("--charts-only", action="store_true", help="只转换谱面，无需音频编码器")
+    ap.add_argument("--with-preview", action="store_true", help="将原始试听块转为 0/preview.ogg；空块跳过")
     ap.add_argument("--target-rms-db", type=float, help="可选响度归一目标；默认保持解码电平")
     args = ap.parse_args(argv)
+    if args.charts_only and args.with_preview:
+        ap.error("--charts-only 与 --with-preview 不能同时使用")
     if args.target_rms_db is not None and (not math.isfinite(args.target_rms_db) or not -60 <= args.target_rms_db <= -1):
         ap.error("--target-rms-db 必须在 -60..-1 之间")
     songs = load_song_list(Path(args.songs).expanduser())
@@ -596,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
                 mid=mid, title=song["title"], artist=song["artist"],
                 levels=song["levels"], out_path=out_path,
                 charts_only=args.charts_only, target_rms_db=args.target_rms_db,
+                with_preview=args.with_preview,
             )
         except (ChartError, AudioError, OSError, ValueError, subprocess.SubprocessError) as exc:
             print(f"[fail] {mid}: {exc}", file=sys.stderr)

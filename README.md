@@ -88,7 +88,16 @@ python3 arcade/import_ifs.py --songs input/songs.json \
 # 包含音频与自备封面
 python3 arcade/import_ifs.py --songs input/songs.json \
   --extract input/contents --covers input/covers --out output/arcade-audio
+
+# 同时保留游戏自带的试听音频（独立的 IFS block 1）
+python3 arcade/import_ifs.py --songs input/songs.json \
+  --extract input/contents --out output/arcade-preview --with-preview
 ```
+
+`--with-preview` 将非空试听块解码并写入 `.mcz` 的 `0/preview.ogg`，不从 BGM 裁切。
+试听时长依实际区块而定。空块不写试听文件；非空但无法解码的块会使该曲失败，
+不会发布不完整的 `.mcz`。此选项不能与 `--charts-only` 合用。
+试听是附加资源，谱面的播放音源引用仍为 `bgm.ogg`；播放器是否使用试听由其自行决定。
 
 `--only 00000001,00000002` 可筛选清单内的 ID。默认保持解码后的音频电平；`--target-rms-db -14.61` 可启用历史流程使用的归一化目标。
 
