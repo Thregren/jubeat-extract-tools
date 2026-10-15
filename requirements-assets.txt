@@ -1,0 +1,5 @@
+# Optional full-resource tools; original mobile/arcade CLIs retain their standard-library path.
+Pillow>=10,<13
+ifstools==3.1
+kbinxml==2.1
+lxml>=5,<7

@@ -33,3 +33,10 @@
 ## 本次整理的本地抽查
 
 只读抽查了 8 首移动版歌曲：24 张谱面的音符与时间轴同旧结果一致，音频和图片逐字节一致；另有 57 张可解析 IFS 谱面的转换结果与旧脚本一致。未重新运行全量历史样本，也未将样本或输出加入仓库。
+
+
+## 全资源工具的新增验证
+
+新增合成测试覆盖 PAK 的双哈希/尾长/C与Python一致性、命名EVE适配、原始试听独立保留、OKI4S native/Python一致性、GFGL像素与枚举、TEXP/LZSS边界、VA3元数据与未知变体、S3P包装边界，以及mobile marker独立key、并发隔离、零note和未知成员。全部夹具在内存或临时目录构造，不包含真实游戏字节。
+
+完整依赖测试：`python3 -m pip install -r requirements-assets.txt` 后运行 `python3 -m unittest discover -s tests -v`。缺可选依赖时部分图像测试会明确skip，不能把skip当成这些功能已验证。真实批处理覆盖范围见[版本表](version-support.md)，源码参数化后的通用CLI仍需先以少量本地输入确认适配。

@@ -103,6 +103,25 @@ python3 arcade/import_ifs.py --songs input/songs.json \
 
 输出为 `<版本>/<清理后的曲名>__<ID>.mcz`。ID 后缀避免同名与大小写撞名；已有文件不覆盖，成功完成 ZIP 后才发布最终文件。详见 [IFS 格式与转换](docs/arcade-format.md)。
 
+## 全资源与额外导出工具
+
+新增工具保留原始文件与精确事件，不局限于 MCZ。完整中文文档和逐版范围：
+
+| 入口 | 导出内容 | 详细中文说明 |
+|---|---|---|
+| `python3 -m legacy` | 初代/ripples/knit 的 PAK、双哈希恢复、历史尾部校验、早期分层资源 | [早期 PAK 与分层导出](docs/legacy-assets.md) |
+| `python3 -m assets` | OKI4S WAV、TEXP/TCER、TDXT/GFGL PNG、VA3/S3P、原始 IFS、EVE | [单文件资产工具](docs/asset-tools.md) |
+| `python3 -m workflows.song_ifs` 等 | 完整命名 IFS、原双音频、三谱、元数据、UI、封面、徽章、官方/mod 分层 | [完整批处理和更新合并](docs/full-exports.md) |
+| `python3 -m workflows.t44` | T44 的 S3V/FLAC、S3P、谱面、IFS 与视频 | [T44 用法](docs/full-exports.md#t44-测试数据) |
+| `python3 -m mobile.full_extract` | plus/jukebeat 原 JBT/seq/AAC/试听、全部图片、marker、主题、scImg | [移动全资源](docs/mobile-full-assets.md) |
+| `python3 -m analysis.compare_versions` 等 | 本次 01–17 批量布局的精确事件比较、特色例证与完整性汇总 | [分析与总表](docs/full-exports.md#跨版本分析与总表) |
+
+先安装可选依赖：`python3 -m pip install -r requirements-assets.txt`。原有标准库命令不因此强制安装图像/IFS 依赖。C 加速按需在本机编译，不分发动态库；无编译器时 OKI4S/TEXBIN 有 Python 回退。
+
+[本次额外工具功能对照](docs/tool-map.md)覆盖所有新增导出能力。
+
+**[使用版本范围表](docs/version-support.md)** 列出初代至 beyond、T44、两种 iOS 备份的实际验证构建与限制。版本目录名不是自动鉴定结果；格式支持不等于任意地区/任意修订均适用。原试听独立保留，缺失不裁切补造；原 EVE/seq 和 300Hz 整数事件优先于量化 MC。占位、仅 BGM、零音符谱、只有封面、mod 与真实转换错误分别统计。第三方参考及许可证见 [来源说明](docs/third-party.md)。
+
 ## 验证
 
 ```bash
