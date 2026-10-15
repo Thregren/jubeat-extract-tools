@@ -115,10 +115,13 @@ python3 arcade/import_ifs.py --songs input/songs.json \
 | `python3 -m workflows.t44` | T44 的 S3V/FLAC、S3P、谱面、IFS 与视频 | [T44 用法](docs/full-exports.md#t44-测试数据) |
 | `python3 -m mobile.full_extract` | plus/jukebeat 原 JBT/seq/AAC/试听、全部图片、marker、主题、scImg | [移动全资源](docs/mobile-full-assets.md) |
 | `python3 -m analysis.compare_versions` 等 | 本次 01–17 批量布局的精确事件比较、特色例证与完整性汇总 | [分析与总表](docs/full-exports.md#跨版本分析与总表) |
+| `python3 -m workflows.normalize_library` | 在已解包结果上生成 WAV / PNG / MC＋精确事件统一库，按首次观察和玩法改谱归档 | [统一库、去重与适用范围](docs/normalized-library.md) |
 
 先安装可选依赖：`python3 -m pip install -r requirements-assets.txt`。原有标准库命令不因此强制安装图像/IFS 依赖。C 加速按需在本机编译，不分发动态库；无编译器时 OKI4S/TEXBIN 有 Python 回退。
 
 [本次额外工具功能对照](docs/tool-map.md)覆盖所有新增导出能力。
+
+统一库工具保持原采样率、声道和电平，将完整歌曲与原独立试听转为 PCM24 WAV。默认按命名空间和 ID 保守去重；跨平台或跨 ID 合并需要显式提供并重新验证身份关系。它读取既有批量导出的 manifest 与精确比较报告，不直接解开任意游戏目录。原始 EVE/SEQ 和精确 300Hz 事件始终保留，详见[中文使用说明](docs/normalized-library.md)。
 
 **[使用版本范围表](docs/version-support.md)** 列出初代至 beyond、T44、两种 iOS 备份的实际验证构建与限制。版本目录名不是自动鉴定结果；格式支持不等于任意地区/任意修订均适用。原试听独立保留，缺失不裁切补造；原 EVE/seq 和 300Hz 整数事件优先于量化 MC。占位、仅 BGM、零音符谱、只有封面、mod 与真实转换错误分别统计。第三方参考及许可证见 [来源说明](docs/third-party.md)。
 

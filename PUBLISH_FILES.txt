@@ -78,3 +78,7 @@ workflows/song_ifs.py
 workflows/soundbanks.py
 workflows/t44.py
 workflows/textures.py
+analysis/identity_relations.py
+docs/normalized-library.md
+tests/test_normalize_library.py
+workflows/normalize_library.py
