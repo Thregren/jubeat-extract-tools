@@ -133,7 +133,11 @@ def assess(root,spec,path,middle_final):
   result['extra_assets']['texture_source_placeholders']=numeric(extras,'texture_placeholders',default=0)
   result['extra_assets']['soundbank_source_placeholders']=numeric(soundbank_stats,'placeholder_files',default=numeric(extras,'va3_placeholders',default=0))
   result['extra_assets']['soundbank_unsupported_files']=numeric(soundbank_stats,'unsupported_count',default=0)
-  result['extra_assets']['png_count_scope']='song covers only'if adapter=='t44'else'image/texture PNG exports'
+  legacy_individual=read_json(path/'individual-texture-manifest.json',{}) if adapter=='middle' else {}
+  standalone=numeric(legacy_individual.get('stats',{}),'png_decoded',default=0)
+  if adapter=='middle' and result['extra_assets']['png_files'] is not None:result['extra_assets']['png_files']+=standalone
+  result['extra_assets']['individual_texture_png_files']=standalone if adapter=='middle' else numeric(individual_stats,'textures_decoded','png_decoded',default=0)
+  result['extra_assets']['png_count_scope']='song covers only'if adapter=='t44'else'decoded texture/crop and standalone TEX PNG; excludes duplicate cover links and general IFS inventories'
   result['stage_error_counts']={stage:{k:integer(v)for k,v in values.items()if(k=='errors'or k.endswith('_errors'))and integer(v)is not None}for stage,values in [('extras',extras),('textures',texture_stats),('soundbanks',soundbank_stats),('mc',mc_stats),('individual_textures',individual_stats),('cover_provenance',cover_audit)]}
   result['declared_song_or_id_directories']=numeric(stats,'songs','song_directories','song_directories_total')
   finished=False
@@ -321,7 +325,7 @@ def text_report(report):
    if other:lines.append('     '+', '.join(other))
    if v.get('verified_dummy_ids')or v.get('opaque_raw_only_ids'):lines.append(f"     已确认1字节dummy：{v.get('verified_dummy_ids',0)}；其他未知raw-only：{v.get('opaque_raw_only_ids',0)}")
   ea=r.get('extra_assets',{})
-  if ea.get('extra_audio_files')or ea.get('extra_chart_files'):lines.append(f"     额外音频{n(ea.get('extra_audio_files'))}，额外谱面{n(ea.get('extra_chart_files'))}；"+('PNG此处仅计歌曲封面。'if r.get('adapter')=='t44'else'PNG为该目录全部导出图计数，非单独封面数。'))
+  if ea.get('extra_audio_files')or ea.get('extra_chart_files'):lines.append(f"     额外音频{n(ea.get('extra_audio_files'))}，额外谱面{n(ea.get('extra_chart_files'))}；"+('PNG此处仅计歌曲封面。'if r.get('adapter')=='t44'else'PNG按纹理/裁剪与独立TEX统计，不重复计封面链接；通用IFS文件另见索引。'))
   if ea.get('texture_source_placeholders')or ea.get('soundbank_source_placeholders'):lines.append(f"     源资源占位：纹理{ea.get('texture_source_placeholders',0)}、音库{ea.get('soundbank_source_placeholders',0)}；未计入成功解码数。")
   if ea.get('complete_ids_with_covers')is not None:lines.append(f"     完整组中已导出本包封面{ea.get('complete_ids_with_covers')}，无本包封面{ea.get('complete_ids_without_covers')}；未从其他版本补图。")
   if r.get('kind')=='mobile':lines.append('     原AAC/M4A保留；preview.m4a单独计数，缺失原试听ID：'+str(r.get('original_preview_missing_count',len(r.get('original_preview_missing_ids',[]))))+'；App版本未知。原谱0note张数：'+str(r.get('zero_note_charts',0))+'；有源seq但无PLAY/LONG不当成漏解。')

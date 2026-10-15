@@ -63,6 +63,7 @@ tests/test_extract.py
 tests/test_legacy_assets.py
 tests/test_mc_repair.py
 tests/test_mobile_full.py
+tests/test_summary_counts.py
 tests/test_t44.py
 tests/test_workflows.py
 workflows/__init__.py
