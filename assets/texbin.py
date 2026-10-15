@@ -4,6 +4,8 @@
 Container and LZSS layout derived from mon/ifs_layeredfs src/texbin.cpp.
 Pixel codecs from DragonMinded/bemaniutils tdxt.py+dxt.py (public domain).
 """
+PIXEL_DECODE_POLICY = 'texp-0x10-rgba-v1'
+
 from pathlib import Path
 import sys,struct,json,re,hashlib,argparse,ctypes
 from ._native import load_library
@@ -104,8 +106,11 @@ def extract_texbin(source,output,*,keep_tdxt=True):
    length=8+(comp or decomp)
    if off+length>len(b):raise ValueError('texture payload boundary')
    raw=lzss(b[off:off+length]);tdxt=TDXT.fromBytes(raw)
-   if tdxt.img is None:raise ValueError(f'unsupported TDXT fmt {tdxt.fmt:#x}')
-   image=tdxt.img;images[i]=image;path=output/(safe(name)+'.png')
+   # TEXP fmt 0x10 is already RGBA (ifs_layeredfs texbin.cpp happy path).
+   # Keep the standalone TDXT/vendor BGRA default and all other formats unchanged.
+   image=Image.frombytes('RGBA',(tdxt.width,tdxt.height),tdxt.raw) if tdxt.fmt==0x10 else tdxt.img
+   if image is None:raise ValueError(f'unsupported TDXT fmt {tdxt.fmt:#x}')
+   images[i]=image;path=output/(safe(name)+'.png')
    image.save(path)
    if keep_tdxt:(output/(safe(name)+'.tdxt')).write_bytes(raw)
    rec.update(output=path.name,width=tdxt.width,height=tdxt.height,format=hex(tdxt.fmt),sha256=hashlib.sha256(path.read_bytes()).hexdigest(),compressed_offset=off,compressed_bytes=comp,decompressed_bytes=decomp,declared_size=declared_size,status='decoded')
@@ -125,7 +130,7 @@ def extract_texbin(source,output,*,keep_tdxt=True):
     rec.update(parent=labels.get(parent,parent),rect=[x1,y1,x2,y2],width=x2-x1,height=y2-y1,output=path.name,sha256=hashlib.sha256(path.read_bytes()).hexdigest(),status='decoded')
    except Exception as e:rec.update(status='failed',error=str(e));errors.append({'name':name,'error':str(e)})
    records.append(rec)
- result={'source':str(source),'source_sha256':hashlib.sha256(b).hexdigest(),'archive_size_declared':total,'archive_size_actual':len(b),'texture_count':count,'records':records,'errors':errors}
+ result={'pixel_decode_policy':PIXEL_DECODE_POLICY,'source':str(source),'source_sha256':hashlib.sha256(b).hexdigest(),'archive_size_declared':total,'archive_size_actual':len(b),'texture_count':count,'records':records,'errors':errors}
  (output/'texture_manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
  return result
 

@@ -39,6 +39,12 @@ python3 -m assets texbin input/tex_example.bin output/png-only --no-tdxt
 
 TDXT 支持范围由实际格式头决定：已用 jubeat 数据验证 RGBA、DXT5 等，另有参考实现支持的像素格式；不能据此承诺其他游戏全部纹理变体。小端 DXT1/3/5 使用 Pillow BCn 路径，其他已知格式走参考解码器。损坏偏移、越界矩形、超预算解压会报错。
 
+**TEXP 中的 `fmt=0x10` 使用原始 RGBA 字节顺序。** 此规则仅在 `extract_texbin` 的包装层生效：直接以 RGBA 读取 TDXT 像素载荷，再由同一张整图生成 TCER 裁剪；不交换 alpha、不翻转行，也不改写保留的 TDXT。它不修改独立 TDXT 的通用 BGRA 默认解释，不使用全局 `invert_channels=True`，因此不会连带翻转 `0x0e` RGB、565、DXT 或 GFGL 图片。
+
+依据是 [ifs_layeredfs 的 `ImageEntryParsed::tex_to_argb8888`](https://github.com/mon/ifs_layeredfs/blob/d679d0fc3bb6279e5d599f4c027917db3b6efbf7/src/texbin.cpp#L765-L805)：虽然历史枚举将 `0x10` 命名为 BGRA，该分支实际直接返回像素载荷；PNG 路径将该结果作为 RGBA 使用，其他像素格式也明确输出 RGBA。不能仅凭枚举名称推断这里应交换红蓝。合成测试使用 R/B 不相等且 alpha 非 255 的像素，同时检查整图、大小端容器的 TCER 裁剪、未改写的原始 TDXT，以及其他格式/独立 TDXT 未受影响。此解释针对该 TEXP 导出路径，不承诺所有游戏的独立 TDXT 都具有同样通道顺序。
+
+新导出的 `texture_manifest.json` 和 API 返回值带有 `pixel_decode_policy: "texp-0x10-rgba-v1"`，表示采用上述仅 `0x10` 的 RGBA 规则。旧版此路径曾把 `0x10` 交给通用 BGRA 解码器，可能产生红蓝颠倒的 PNG；旧导出没有该策略标记时，应从原始 TEXP **重新输出到新目录**，再更新派生图片及哈希。更新代码不会自动修改已有 PNG、图集裁剪或缓存；不要对 DXT、移动版 PNG、GFGL 或所有图片统一交换通道。
+
 ## 单张 GFGL/TDXT 图片
 
 ```bash

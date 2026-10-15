@@ -14,6 +14,25 @@ def bmp(ch=2,payload=b'\x12\x34',count=0):
     h=bytearray(32);h[:4]=b'BMP\0';struct.pack_into('>I',h,4,count);h[16]=ch;struct.pack_into('>I',h,20,8000)
     return bytes(h)+payload
 
+def texbin_fixture(pixels,width,height,fmt=0x10,endian='<',rectangle=False):
+    """Artificial TEXP with one TDXT and optional right-column TCER region."""
+    def names(label):
+        text=label.encode()+b'\0';data=bytearray(40+len(text));data[:4]=b'NAMP' if endian=='<' else b'PMAN'
+        struct.pack_into(endian+'I',data,16,1);struct.pack_into(endian+'I',data,24,28)
+        struct.pack_into(endian+'III',data,28,0,0,40);data[40:]=text
+        return bytes(data)+bytes((-len(data))%4)
+    tdxt=struct.pack(endian+'4sIIIHHIII',b'TDXT' if endian=='<' else b'TXDT',0,0,64+len(pixels),width,height,fmt,0,0)
+    tdxt+=bytes(12)+struct.pack(endian+'I',3)+bytes(16)+pixels
+    labels=names('atlas');rect=bytes();rectoff=0
+    if rectangle:
+        rectoff=64+len(labels);rnames=names('right_column');header=bytearray(28);header[:4]=b'TCER' if endian=='<' else b'RECT'
+        struct.pack_into(endian+'III',header,16,1,28,28+len(rnames))
+        rect=bytes(header)+rnames+struct.pack(endian+'IHHHH',0,1,2,0,2)
+    entryoff=64+len(labels)+len(rect);payload=struct.pack('>II',len(tdxt),0)+tdxt
+    header=bytearray(64);header[:4]=b'PXET' if endian=='<' else b'TEXP'
+    for off,value in [(12,entryoff+12+len(payload)),(20,1),(32,rectoff),(52,64),(60,entryoff)]:struct.pack_into(endian+'I',header,off,value)
+    return bytes(header)+labels+rect+struct.pack(endian+'III',0,len(payload),entryoff+12)+payload,tdxt
+
 class AudioAndChartTests(unittest.TestCase):
     def test_native_and_fallback_equal_reference(self):
         rng=random.Random(37)
@@ -49,16 +68,42 @@ class ImageAndBankTests(unittest.TestCase):
         with self.assertRaises(ValueError):decode_individual(bytes(bad))
     def test_texbin_rgba_and_lzss(self):
         from assets.texbin import extract_texbin,lzss
-        tdxt=struct.pack('<4sIIIHHIII',b'TDXT',0,0,72,2,1,0x10,0,0)+bytes(12)+struct.pack('<I',3)+bytes(16)+bytes([0,0,255,255,0,255,0,255])
+        tdxt=struct.pack('<4sIIIHHIII',b'TDXT',0,0,72,2,1,0x10,0,0)+bytes(12)+struct.pack('<I',3)+bytes(16)+bytes([231,67,19,129,11,101,203,47])
         names=bytearray(48);names[:4]=b'NAMP';struct.pack_into('<I',names,16,1);struct.pack_into('<I',names,24,28);struct.pack_into('<III',names,28,0,0,40);names[40:44]=b'pix\0'
         h=bytearray(64);h[:4]=b'PXET';struct.pack_into('<I',h,20,1);struct.pack_into('<I',h,52,64);struct.pack_into('<I',h,60,112)
         blob=bytes(h)+bytes(names)+struct.pack('<III',0,8+len(tdxt),124)+struct.pack('>II',len(tdxt),0)+tdxt
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'texture';p.write_bytes(blob);r=extract_texbin(p,Path(d)/'out');self.assertFalse(r['errors'])
             from PIL import Image
-            with Image.open(Path(d)/'out/pix.png') as im:self.assertEqual(list(im.getdata()),[(255,0,0,255),(0,255,0,255)])
+            with Image.open(Path(d)/'out/pix.png') as im:self.assertEqual(list(im.getdata()),[(231,67,19,129),(11,101,203,47)])
         self.assertEqual(lzss(struct.pack('>II',3,4)+b'\x07abc'),b'abc')
         with self.assertRaises(ValueError):lzss(struct.pack('>II',100,1)+b'\x01')
+    def test_texbin_fmt10_rgba_tcer_and_standalone_default(self):
+        from assets.texbin import extract_texbin
+        from assets.vendor.tdxt import TDXT
+        from PIL import Image
+        pixels=[(201,51,7,255),(13,31,223,117),(17,199,53,67),(99,11,173,239)]
+        for endian in ('<','>'):
+            with self.subTest(endian=endian),tempfile.TemporaryDirectory() as temporary:
+                blob,tdxt=texbin_fixture(bytes(v for p in pixels for v in p),2,2,endian=endian,rectangle=True)
+                source=Path(temporary)/'source';source.write_bytes(blob);output=Path(temporary)/'output'
+                result=extract_texbin(source,output);self.assertFalse(result['errors'])
+                self.assertEqual(result['pixel_decode_policy'],'texp-0x10-rgba-v1')
+                self.assertEqual(json.loads((output/'texture_manifest.json').read_text())['pixel_decode_policy'],'texp-0x10-rgba-v1')
+                with Image.open(output/'atlas.png') as image:self.assertEqual(list(image.getdata()),pixels)
+                with Image.open(output/'right_column.png') as image:
+                    self.assertEqual(image.size,(1,2));self.assertEqual(list(image.getdata()),[pixels[1],pixels[3]])
+                self.assertEqual((output/'atlas.tdxt').read_bytes(),tdxt)
+                # The correction belongs only to TEXP; standalone vendor semantics stay BGRA.
+                self.assertEqual(TDXT.fromBytes(tdxt).img.getpixel((0,0)),(7,51,201,255))
+    def test_texbin_other_pixel_formats_keep_their_channel_order(self):
+        from assets.texbin import extract_texbin
+        from PIL import Image
+        for fmt,raw,expected in [(0x0e,bytes([231,67,19]),(231,67,19)),(0x0b,b'\0\xf8',(255,0,0))]:
+            with self.subTest(fmt=fmt),tempfile.TemporaryDirectory() as temporary:
+                blob,_=texbin_fixture(raw,1,1,fmt=fmt);source=Path(temporary)/'source';source.write_bytes(blob)
+                output=Path(temporary)/'output';result=extract_texbin(source,output);self.assertFalse(result['errors'])
+                with Image.open(output/'atlas.png') as image:self.assertEqual(image.getpixel((0,0)),expected)
     def test_va3_metadata_and_unsupported_variant(self):
         from assets.va3 import extract_va3
         h=b'VA3W'+struct.pack('<BBBBIIIII',1,0,0,2,1,4,28,32,96)
