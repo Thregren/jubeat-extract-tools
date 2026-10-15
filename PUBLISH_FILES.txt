@@ -82,3 +82,10 @@ analysis/identity_relations.py
 docs/normalized-library.md
 tests/test_normalize_library.py
 workflows/normalize_library.py
+workflows/browser_library.py
+tests/test_browser_library.py
+docs/browser-library.md
+workflows/web_metadata.py
+workflows/curate_library.py
+tests/test_web_metadata.py
+docs/web-metadata.md
