@@ -81,7 +81,7 @@ output/browser/
 
 适用范围是当前归一化流程已支持的街机 jubeat、ripples、knit、copious APPEND、saucer、saucer fulfill、prop、Qubell、clan、T44/JAEPO、festo（官方与 Omnimix 分开）、Ave.、beyond the Ave.，以及 jubeat plus / jukebeat。移动版按备份资源包归档，不凭此声称覆盖所有商店时期或地区发行。
 
-原批 18 个归档来源导出 2,645 条目；按网页版本分类整理并加入音乐魔方后为 17 个版本分类、2,666 条目，其中 2,457 个可玩、209 个仅资源；7,329 份谱面、2,664 份完整 WAV、2,435 份原试听、2,455 份本地 PNG。具体以自己的 `data/export.json` 为准。T44、合并来源、jukebeat 等零新增版本仍生成来源索引包，避免复制已经归属更早版本的歌曲。因此版本包首数不代表该版本完整曲库首数。
+原批 18 个归档来源导出 2,645 条目；按网页版本分类整理并加入音乐魔方后为 17 个版本分类、2,457 条目，其中 2,457 个可玩，特殊或不完整资源分类已移除；7,329 份谱面、2,456 份完整 WAV、2,435 份原试听、2,454 份本地 PNG。具体以自己的 `data/export.json` 为准。T44、合并来源、jukebeat 等零新增版本仍生成来源索引包，避免复制已经归属更早版本的歌曲。因此版本包首数不代表该版本完整曲库首数。
 
 ## 核验结果
 
@@ -96,3 +96,9 @@ python3 -m unittest discover -s tests -p test_browser_library.py -v
 ```
 
 测试覆盖未知等级/标题、缺谱、独立试听、PCM24 字节保留、300Hz 事件保留、原谱保留、零新增版本、ZIP64/CRC/SHA 清单、幂等复用和路径越界拒绝，不需要真实游戏文件。
+
+## 移除特殊资源分类
+
+最终例库已按分类移除 209 组 `特殊或不完整资源`，不再进入统一库、浏览器索引或最终版本包。正常条目的缺失素材仍如实记录。所有旧生成包均需重建，避免 ZIP 继续带有已删除条目。
+
+先用 `python3 -m workflows.prune_library --unified output/unified-curated --directory output/browser-curated` 查看数量；相同命令追加 `--apply` 会实际删除该分类目录并更新索引、统计与删除记录。参数可以重复指定，用于一并处理自己生成的历史备份。该操作不按 `missing` 字段删除其他分类，也不会移除音乐魔方的正常 EXT。

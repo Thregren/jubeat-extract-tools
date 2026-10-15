@@ -89,3 +89,5 @@ workflows/web_metadata.py
 workflows/curate_library.py
 tests/test_web_metadata.py
 docs/web-metadata.md
+workflows/prune_library.py
+tests/test_prune_library.py
