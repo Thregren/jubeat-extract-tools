@@ -26,6 +26,7 @@ from analysis.identity_relations import identity_key, resolve_identities
 
 DIFFICULTIES = ("BSC", "ADV", "EXT")
 POLICY_VERSION = "normalized-library-v1"
+CHART_CONVERTER_VERSION = "tempo-source-order-v2"
 
 
 def read_json(path):
@@ -611,6 +612,8 @@ class LibraryBuilder:
         return result
 
     def reusable_package(self, package, done):
+        if done.get("chart_converter_version") != CHART_CONVERTER_VERSION:
+            return False
         if done.get("fingerprint") != package["fingerprint"]:
             return False
         folder = self.destination(package["path"])
@@ -655,7 +658,9 @@ class LibraryBuilder:
         folder.mkdir(parents=True, exist_ok=True)
         result = {key: package[key] for key in ("identity", "title", "artist", "source", "category", "first_path",
                                                        "bundle_signature", "missing", "missing_charts", "nonplayable_charts", "fingerprint")}
-        result.update(schema=1, policy_version=POLICY_VERSION, audio={}, charts={}, cover=None)
+        result.update(schema=1, policy_version=POLICY_VERSION,
+                      chart_converter_version=CHART_CONVERTER_VERSION,
+                      audio={}, charts={}, cover=None)
         files = []
         for kind, asset in package["audio"].items():
             info = self.audio_index[asset["path"]]

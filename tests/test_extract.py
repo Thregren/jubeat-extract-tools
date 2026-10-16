@@ -74,6 +74,41 @@ class ChartTests(unittest.TestCase):
 
     def test_small_positive_bpm(self): self.assertGreater(arcade._value_to_bpm(100000000), 0)
 
+    def test_same_tick_tempo_uses_source_order_for_eve_and_seq(self):
+        # Both orders must work. A (tick, value) sort always leaves 1,000,000
+        # last, incorrectly making the first case 60 BPM after tick 300.
+        commands = {5: 'TEMPO', 1: 'PLAY', 2: 'END'}
+        for values, expected_beat, final_bpm in [
+            ((1000000, 500000), Fraction(4), Fraction(120)),
+            ((500000, 1000000), Fraction(3), Fraction(60)),
+        ]:
+            with self.subTest(values=values):
+                records = [(5, 0, 500000), (5, 300, values[0]),
+                           (5, 300, values[1]), (1, 600, 3), (2, 900, 0)]
+                raw = '\n'.join(f'{tick},{commands[kind]},{value}'
+                                for kind, tick, value in records).encode()
+                with tempfile.TemporaryDirectory() as temp:
+                    p = Path(temp) / 'same-tick.ifs'
+                    p.write_bytes(synthetic.ifs_bytes(chart=raw))
+                    notes, timing, _ = arcade.parse_chart(p, 'EXT')
+                seq = mobile.parse_chart(synthetic.sequence(records))
+                self.assertEqual(notes, [(expected_beat, 3, None, None)])
+                self.assertEqual(timing, [(Fraction(0), Fraction(120)),
+                                          (Fraction(2), final_bpm)])
+                self.assertEqual(seq['notes'], notes)
+                self.assertEqual(seq['timing'], timing)
+
+    def test_observed_simultaneous_tempo_pair_keeps_final_172_bpm(self):
+        # Numeric transition observed in an independently held EVE (11000181):
+        # 366144 then 348837 at tick 22899. No game fixture is distributed.
+        from assets.eve import parse_eve_chart
+        raw = (b'0,TEMPO,340909\n22899,TEMPO,366144\n'
+               b'22899,TEMPO,348837\n24000,PLAY,3\n24300,END,0\n')
+        notes, timing, _ = parse_eve_chart(raw, 'EXT')
+        self.assertEqual(timing[-1][1], Fraction(172))
+        self.assertEqual(len(timing), 2)
+        self.assertEqual(len(notes), 1)
+
     def test_ifs_and_mobile_agree(self):
         with tempfile.TemporaryDirectory() as temp:
             p = Path(temp) / 'sample.ifs'; p.write_bytes(synthetic.ifs_bytes())

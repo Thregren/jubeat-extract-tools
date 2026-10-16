@@ -15,7 +15,7 @@ import wave
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analysis.compare_versions import Reader
 from analysis.identity_relations import resolve_identities
-from workflows.normalize_library import (LibraryBuilder, POLICY_VERSION, contained,
+from workflows.normalize_library import (LibraryBuilder, POLICY_VERSION, CHART_CONVERTER_VERSION, contained,
     compressed_audio_parameters, itunes_gapless_samples, file_sha256, fingerprint,
     read_json, wav_info, write_json)
 
@@ -346,6 +346,24 @@ class ExportTests(unittest.TestCase):
             self.assertEqual(read_json(folder / "charts/BSC.mc")["meta"]["song"]["title"], "ID 10000001")
             self.assertIsNone(read_json(folder / "song.json")["title"])
             self.assertEqual(builder.run(builder.build_plan()), 0)
+            # A valid cached output from an older converter must not survive
+            # solely because its source and recorded output hashes still agree.
+            mc_path = folder / "charts/BSC.mc"
+            original_mc = read_json(mc_path)
+            legacy_mc = read_json(mc_path)
+            legacy_mc["time"][0]["bpm"] = 999
+            write_json(mc_path, legacy_mc)
+            marker = read_json(folder / "song.json")
+            marker.pop("chart_converter_version")
+            marker["files"]["charts/BSC.mc"] = dict(bytes=mc_path.stat().st_size,
+                                                       sha256=file_sha256(mc_path))
+            write_json(folder / "song.json", marker)
+            audio_hash = file_sha256(folder / "bgm.wav")
+            self.assertEqual(builder.run(plan), 0)
+            self.assertEqual(read_json(mc_path), original_mc)
+            self.assertEqual(read_json(folder / "song.json")["chart_converter_version"],
+                             CHART_CONVERTER_VERSION)
+            self.assertEqual(file_sha256(folder / "bgm.wav"), audio_hash)
             (folder / "charts/BSC.mc").write_text("corrupted")
             self.assertEqual(builder.run(plan), 0)
             self.assertIn("note", read_json(folder / "charts/BSC.mc"))

@@ -186,7 +186,14 @@ def parse_chart(ifs: Path, code: str) -> tuple[list, list, Fraction]:
         raise ChartError(f"{ifs.name} 的 {code} 块是占位（官方未配信）")
 
     events = _parse_events(raw)
-    tempos = sorted((t, v) for t, cmd, v in events if cmd == "TEMPO")
+    # TEMPO is stateful: the last record in source order wins at one tick.
+    # Sorting (tick, value) reverses some simultaneous changes and can make
+    # every later note drift. Earlier changes at that tick have zero duration.
+    tempo_by_tick = {}
+    for tick, cmd, value in events:
+        if cmd == "TEMPO":
+            tempo_by_tick[tick] = value
+    tempos = sorted(tempo_by_tick.items())
     if not tempos:
         raise ChartError(f"{ifs.name} 的 {code} 块里没有 TEMPO")
     if tempos[0][0] != 0:

@@ -180,7 +180,13 @@ def parse_seq(data: bytes) -> tuple[bytes, int, int, int, int, list]:
 def parse_chart(data: bytes) -> dict:
     """seq_* 明文 → {notes, timing, ...}。notes = (beat, index, endbeat, endindex)。"""
     magic, cnt, notecnt, total, mask, recs = parse_seq(data)
-    tempos = sorted((tick, v) for t, tick, v in recs if t == 5)
+    # Keep the source's final TEMPO at each tick, as for arcade EVE charts.
+    # Sorting equal-tick records by their values changes the effective BPM.
+    tempo_by_tick = {}
+    for kind, tick, value in recs:
+        if kind == 5:
+            tempo_by_tick[tick] = value
+    tempos = sorted(tempo_by_tick.items())
     if not tempos:
         raise ChartError("没有 TEMPO 记录")
     if tempos[0][0] != 0:

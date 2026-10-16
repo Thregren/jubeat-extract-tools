@@ -118,8 +118,11 @@ python -m workflows.normalize_library \
 - WAV 输入按实际 RIFF 数据长度严格检查采样率、声道和帧数。T44 的 FLAC、手机的 AAC/M4A 用实际 ffprobe 检查采样率/声道。AAC 有合法 `format.tags.iTunSMPB` 时，优先用第四个十六进制字段的有效样本数精确校验（容差为 0），第二/第三字段记录 encoder priming 与尾部 padding；容器 duration 可能包括这两部分，不能直接当作有效 PCM 长度。没有可用 SMPB 时，有 `nb_samples` 则精确检查，否则使用 duration/time_base 及声明的 initial_padding/首包 skip_samples，加一个 AAC 帧边界（LC 1024、HE 2048 样本；有明确 discard_padding 时也计入）作为有依据的容差。检查依据、容器帧数、延迟与实际输出帧数都写入 sidecar；不以固定 2048 样本阈值误判 iTunes 的 2112 样本编码延迟，也不裁切或补齐音频来满足头部时长。其他压缩 codec 未验证，拒绝猜测。
 - PNG 不缩放、不重采样。最早选中源没有封面时，可以从同一已确认身份的其他来源补图，`asset_provenance.cover` 记录版本、ID、路径和 `borrowed=true`。音频补缺仅使用同一个 gameplay bundle 的其他观察，避免从另一种编曲/变体猜取音乐。
 - MC 是编辑器便利格式，使用现有转换器的拍点积分与 1/48 beat 取整。未知正式曲名显示为 `ID <原ID>`；`song.json.title` 仍为 null，不把 CP932 读音当正式曲名。
+- 同一整数 tick 有多条 TEMPO 时，以原 EVE/SEQ 文件顺序的最后一条生效，不能按 TEMPO 数值排序。该规则同时适用于街机 EVE 和移动 SEQ；是否受影响取决于事件内容，与游戏版本目录名无关。旧转换器曾错误重排同时刻 TEMPO，可能导致后半曲持续漂移；原始事件 JSON 和音频不受影响。
 - 300 Hz JSON 保留整数 tick、事件顺序、命令及参数；手机另保留完整 0x60 字节头、原始两个 uint32 记录和尾随字节，可逐字节重组 SEQ。EVE 的原始编码、换行与空白由 `original/*.eve` 无损保留。MC note/LONG 数须与原事件一致。
 - HAKU/MEASURE 的差别不额外复制歌曲包，但各来源的原 SHA、完整事件 SHA、原谱路径仍在 `provenance.json` 的观察列表中，可回原导出追溯。
+
+已有导出升级时，应从保留的原 EVE/SEQ 重建受影响的 MC，再更新播放器的派生 JSON。`song.json.chart_converter_version` 记录转换器修订；本版为 `tempo-source-order-v2`。统一库构建器不会复用缺少该修订的旧完成标记，音频缓存政策和源文件保持不变。仅改 TEMPO JSON 可能遗漏当时按错误时轴换算的音符拍值，不能代替重新转换。重建后应以原整数 tick 独立核对全部音符和长押头尾的秒数；物量一致不能证明时序正确。
 
 默认在同一文件系统内用硬链接保留原谱、封面与音频缓存，跨文件系统则复制。工具自己不会原地写原素材；硬链接文件的后续人工编辑会影响共享 inode，因此需要编辑时先另存副本。
 
