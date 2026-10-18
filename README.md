@@ -28,6 +28,7 @@ python3 examples/walkthrough.py
 
 | 路径 | 用途 |
 |---|---|
+| `.agents/skills/jubeat-video-chart-transcription/SKILL.md` | Codex 技能：从实机视频抄谱、校准音画时间并导出可复核谱包 |
 | `mobile/extract.py` | `.adbk → .jbt → 解密 → 谱面 / 图片 / 音频`，可选 `.mcz` |
 | `mobile/tools/jbf.c` | BFCodec 的 Blowfish 变种实现，首次运行在本机编译 |
 | `mobile/tools/cgbi.py` | Apple CgBI PNG 转标准 PNG |
