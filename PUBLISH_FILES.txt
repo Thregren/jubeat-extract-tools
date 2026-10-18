@@ -1,5 +1,6 @@
 # Explicit public source/documentation/test allowlist
 .gitattributes
+.agents/skills/jubeat-video-chart-transcription/SKILL.md
 .github/workflows/check.yml
 .gitignore
 LICENSE
