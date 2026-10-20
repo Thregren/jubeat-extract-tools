@@ -1,5 +1,4 @@
 """Synthetic-only checks for video/MIDI calibration."""
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -43,11 +42,12 @@ class VideoChartAuditTests(unittest.TestCase):
             {"tick": 450, "command": "PLAY", "value": 0},
             {"tick": 850, "command": "PLAY", "value": 2},
         ]}
-        result = audit(reference, events)
+        result = audit(reference, events, audio_offset_seconds=0.05)
         self.assertEqual(result["reference_notes"], 2)
         self.assertEqual(result["ordered_panel_mismatches"], 1)
         self.assertEqual(result["cloned_lower_difficulty_tracks"], ["bsc", "adv"])
         self.assertAlmostEqual(result["median_video_minus_midi_seconds"], 0.05)
+        self.assertEqual(result["median_after_audio_alignment_seconds"], 0)
         self.assertEqual(result["absolute_timing_residual_p95_seconds"], 0)
 
     def test_invalid_panel_is_rejected(self):

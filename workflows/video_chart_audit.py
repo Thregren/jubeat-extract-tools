@@ -101,7 +101,8 @@ def read_midi(path: Path) -> dict:
     return {"resolution": resolution, "tracks": tracks, "second": second}
 
 
-def audit(reference: dict, events: dict, difficulty: str = "ext", pitch_base: int = 36) -> dict:
+def audit(reference: dict, events: dict, difficulty: str = "ext", pitch_base: int = 36,
+          audio_offset_seconds: float | None = None) -> dict:
     tracks = reference["tracks"]
     if difficulty not in tracks:
         raise ValueError(f"missing MIDI track {difficulty}")
@@ -127,6 +128,9 @@ def audit(reference: dict, events: dict, difficulty: str = "ext", pitch_base: in
     return {"reference_notes": len(native), "video_notes": len(video),
             "ordered_panel_mismatches": len(wrong), "wrong_panels": wrong,
             "median_video_minus_midi_seconds": round(offset, 6) if offset is not None else None,
+            "video_audio_minus_reference_audio_seconds": audio_offset_seconds,
+            "median_after_audio_alignment_seconds": round(offset - audio_offset_seconds, 6)
+            if offset is not None and audio_offset_seconds is not None else None,
             "absolute_timing_residual_p95_seconds": round(residuals[round((len(residuals) - 1) * .95)], 6) if residuals else None,
             "absolute_timing_residual_max_seconds": round(residuals[-1], 6) if residuals else None,
             "cloned_lower_difficulty_tracks": cloned,
@@ -139,9 +143,12 @@ def main(argv=None) -> int:
     parser.add_argument("--events", required=True, type=Path)
     parser.add_argument("--difficulty", default="ext", choices=("bsc", "adv", "ext"))
     parser.add_argument("--pitch-base", type=int, default=36)
+    parser.add_argument("--audio-offset-seconds", type=float,
+                        help="Measured video-audio minus reference-audio lag; positive means video audio is later")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
-    result = audit(read_midi(args.midi), json.loads(args.events.read_text()), args.difficulty, args.pitch_base)
+    result = audit(read_midi(args.midi), json.loads(args.events.read_text()), args.difficulty,
+                   args.pitch_base, args.audio_offset_seconds)
     payload = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         args.output.write_text(payload, encoding="utf-8")
