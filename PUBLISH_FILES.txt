@@ -92,3 +92,5 @@ tests/test_web_metadata.py
 docs/web-metadata.md
 workflows/prune_library.py
 tests/test_prune_library.py
+workflows/video_chart_audit.py
+tests/test_video_chart_audit.py
